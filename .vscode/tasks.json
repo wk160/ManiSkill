@@ -1,0 +1,53 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ManiSkill: Environment Info",
+      "type": "shell",
+      "command": "/bin/bash",
+      "args": [
+        "/home/ubuntu/wk/projects/ManiSkill/scripts/environment_info.sh"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ManiSkill: Verify PickCube CPU",
+      "type": "shell",
+      "command": "/bin/bash",
+      "args": [
+        "/home/ubuntu/wk/projects/ManiSkill/scripts/verify_install_cpu.sh"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ManiSkill: Pip Check",
+      "type": "shell",
+      "command": "/home/ubuntu/anaconda/envs/maniskill/bin/python",
+      "args": [
+        "-m",
+        "pip",
+        "check"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ManiSkill: Show Disk and GPU",
+      "type": "shell",
+      "command": "/bin/bash",
+      "args": [
+        "-lc",
+        "df -h /; nvidia-smi"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ManiSkill: GPU Smoke Test After Training",
+      "type": "shell",
+      "command": "/bin/bash",
+      "args": [
+        "/home/ubuntu/wk/projects/ManiSkill/scripts/run_pickcube_gpu_after_training.sh"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

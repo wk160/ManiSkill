@@ -41,6 +41,19 @@ imgui.ini
 /benchmark_results
 /mani_skill/examples/benchmarking/benchmark_results
 /mani_skill/examples/benchmarking/videos
+
+# Local ManiSkill deployment artifacts
+deployment_logs/
+local_runs/
+*.core
+core
+core.*
+.vscode/*.log
+
+# Keep the project VS Code configuration versioned.
+!.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
 # testing
 .coverage*
 htmlcov/
