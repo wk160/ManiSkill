@@ -3,7 +3,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal, Optional
 
 import gymnasium as gym
 import numpy as np
@@ -49,6 +49,12 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "PickCube-v1"
     """the id of the environment"""
+    render_mode: Literal["none", "rgb_array"] = "rgb_array"
+    """render mode; 'none' disables rendering while the default preserves the original behavior"""
+    render_backend: Literal["none", "gpu"] = "gpu"
+    """render backend; 'none' disables the SAPIEN renderer while the default preserves the original behavior"""
+    sim_backend: Literal["physx_cuda", "physx_cpu"] = "physx_cuda"
+    """ManiSkill simulation backend; the default preserves the original GPU PhysX behavior"""
     total_timesteps: int = 10000000
     """total timesteps of the experiments"""
     learning_rate: float = 3e-4
@@ -191,8 +197,19 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
+    # Convert CLI-friendly 'none' values to ManiSkill's actual API values. In
+    # particular, render_backend must remain the string "none" for ManiSkill 3.0.1.
+    resolved_render_mode = None if args.render_mode == "none" else args.render_mode
+    resolved_render_backend = "none" if args.render_backend == "none" else args.render_backend
+
     # env setup
-    env_kwargs = dict(obs_mode="state", render_mode="rgb_array", sim_backend="physx_cuda")
+    env_kwargs = dict(
+        obs_mode="state",
+        render_mode=resolved_render_mode,
+        render_backend=resolved_render_backend,
+        sim_backend=args.sim_backend,
+    )
+    print("Environment configuration:", env_kwargs)
     if args.control_mode is not None:
         env_kwargs["control_mode"] = args.control_mode
     envs = gym.make(args.env_id, num_envs=args.num_envs if not args.evaluate else 1, reconfiguration_freq=args.reconfiguration_freq, **env_kwargs)

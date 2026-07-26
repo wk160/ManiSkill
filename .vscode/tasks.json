@@ -48,6 +48,34 @@
         "/home/ubuntu/wk/projects/ManiSkill/scripts/run_pickcube_gpu_after_training.sh"
       ],
       "problemMatcher": []
+    },
+    {
+      "label": "ManiSkill: Verify PickCube GPU",
+      "type": "shell",
+      "command": "/bin/bash",
+      "args": [
+        "/home/ubuntu/wk/projects/ManiSkill/scripts/run_pickcube_gpu_after_training.sh"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ManiSkill: Show GPU Smoke Summary",
+      "type": "shell",
+      "command": "/bin/bash",
+      "args": [
+        "-lc",
+        "sed -n '1,240p' /home/ubuntu/wk/projects/ManiSkill/deployment_logs/GPU_SMOKE_SUMMARY.md"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ManiSkill: PPO Smoke After Confirmation",
+      "type": "shell",
+      "command": "/bin/bash",
+      "args": [
+        "/home/ubuntu/wk/projects/ManiSkill/scripts/run_pickcube_ppo_smoke.sh"
+      ],
+      "problemMatcher": []
     }
   ]
 }

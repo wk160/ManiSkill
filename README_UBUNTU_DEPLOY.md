@@ -4,7 +4,7 @@
 主机：ubuntu-server  
 仓库：/home/ubuntu/wk/projects/ManiSkill  
 Git 分支：feature/upper-limb-rl  
-Git HEAD：42b6824 [BugFix] fix scalar-seeded main RNG expansion shrinking the episode seed batch (#1457)
+Git HEAD：1fcfcd4 chore(deploy): add ManiSkill setup and CPU PhysX verification
 
 ## 已部署环境
 
@@ -49,7 +49,17 @@ CUDA_VISIBLE_DEVICES=0 /home/ubuntu/wk/projects/ManiSkill/scripts/verify_install
 
 最小无参 RenderMaterial() 在正常环境与移除 LD_LIBRARY_PATH 的环境中均构造成功。CUDA_VISIBLE_DEVICES="" 会使 RenderMaterial(base_color=[1, 0, 0, 1]) 在材质构造时以退出码 139 段错误；相同测试在 CUDA_VISIBLE_DEVICES 未设置和 CUDA_VISIBLE_DEVICES=0 时均成功。这确认空字符串是当前 SAPIEN 3.0.3 带颜色材质崩溃的直接触发条件。
 
-CUDA_VISIBLE_DEVICES=0 下的正式 PickCube CPU PhysX 验证已成功创建环境、reset、完成 30 step 并正常 close，日志确认 simulation backend 为 physx_cpu、render backend 为 none。官方随机动作 CPU PhysX 验证也成功运行至第 50 步 truncated，退出码 0。GPU 仅对进程可见，以满足 SAPIEN 的材质初始化；没有启用 physx_cuda。GPU smoke test 本次未运行。没有修改 NVIDIA 驱动、系统 CUDA、cuDNN、SAPIEN、PyTorch 或 Conda 环境，也没有运行 PPO。
+CUDA_VISIBLE_DEVICES=0 下的正式 PickCube CPU PhysX 验证已成功创建环境、reset、完成 30 step 并正常 close，日志确认 simulation backend 为 physx_cpu、render backend 为 none。官方随机动作 CPU PhysX 验证也成功运行至第 50 步 truncated，退出码 0。GPU 仅对进程可见，以满足 SAPIEN 的材质初始化；没有启用 physx_cuda。
+
+GPU PhysX smoke test 已于 2026-07-24 20:28--20:30 CST 成功：CUDA_VISIBLE_DEVICES=0、PickCube-v1、num_envs=16、state observation、sim_backend=physx_cuda、render_backend="none"、render_mode=None。环境创建、reset、100 step 和 close 均成功；observation 为 `(16, 42)` 的 `torch.float32 cuda:0` Tensor，reward、terminated、truncated 均为 `(16,)` 批量。显存从 15 MiB 到峰值 1599 MiB，结束恢复 15 MiB，最大 GPU 利用率 67%。运行后无 GPU compute process（仅 Xorg 图形进程）。SAPIEN 仍有已知 Vulkan ICD 警告，但没有 Vulkan fatal、CUDA OOM 或 SIGSEGV，也没有 GUI、图片或视频。
+
+## Stage 04 PPO smoke test
+
+2026-07-24 22:47 CST 已完成一次短时 PPO 连通性验证。官方 `examples/baselines/ppo/ppo.py` 仅增加了向后兼容的 `--render-mode`、`--render-backend` 与 `--sim-backend` 参数；默认仍为原先的 `rgb_array`、`gpu`、`physx_cuda`。本次显式使用 `render_mode=None`、`render_backend="none"`、`sim_backend=physx_cuda`、state observation、PickCube-v1、num_envs=16、num_steps=64、total_timesteps=65536、4 minibatches 和 4 update epochs，禁用 WandB 与视频。
+
+测试与外部 SwinAttUNet evaluation PID 746284 并行。运行前可用显存 18881 MiB；PPO 完成 64 个 rollout/PPO update 迭代，最终 SPS 535，policy/value/entropy 均正常且所有记录标量有限。生成了 TensorBoard event 和一个可读的 final checkpoint。总 GPU 峰值 8893 MiB、PPO 进程峰值 3768 MiB、外部进程为 5092 MiB；因此总显存和速度都不能作为 PPO 独占 benchmark。无 CUDA OOM、SIGSEGV、Vulkan fatal 或 NaN。该 smoke 只证明训练链路连通，不代表策略已经收敛，更不代表已开始正式 PPO 训练。详细记录见 `deployment_logs/PPO_SMOKE_STAGE04_SUMMARY.md`。
+
+没有修改 NVIDIA 驱动、系统 CUDA、cuDNN、SAPIEN、PyTorch 或 Conda 环境。仅运行了上述受控 PPO smoke test，未运行正式 PPO 训练。
 
 官方随机动作的当前源码入口与已验证命令：
 
@@ -84,7 +94,7 @@ nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,nohead
 /home/ubuntu/wk/projects/ManiSkill/scripts/run_pickcube_gpu_after_training.sh
 ~~~
 
-脚本会先检查 nvidia-smi 的 compute process 和 PID 693206；任一存在即拒绝执行。通过检查后它才会以 num_envs=16、state observation、无 GUI、短时 step 的方式执行 PhysX CUDA smoke test。该脚本本次没有运行。
+脚本会先检查 nvidia-smi 的 compute process；任一存在即拒绝执行。通过检查后，它会设置 CUDA_VISIBLE_DEVICES=0 并调用 `local_examples/verify_pickcube_gpu.py`。该验证固定为 num_envs=16、state observation、sim_backend=physx_cuda、render_backend="none"、render_mode=None，最多 100 step，且使用 PIPESTATUS 返回 Python 状态。2026-07-24 已通过一次真实服务器验证；完整日志和资源摘要在 `deployment_logs/verify_pickcube_gpu.log`、`deployment_logs/gpu_smoke_memory.log` 与 `deployment_logs/GPU_SMOKE_SUMMARY.md`。
 
 ## VS Code
 
@@ -95,8 +105,11 @@ VS Code 解释器配置在 .vscode/settings.json，指向独立 maniskill Python
 - ManiSkill: Pip Check
 - ManiSkill: Show Disk and GPU
 - ManiSkill: GPU Smoke Test After Training
+- ManiSkill: Verify PickCube GPU
+- ManiSkill: Show GPU Smoke Summary
+- ManiSkill: PPO Smoke After Confirmation
 
-所有任务使用绝对路径，不依赖终端中当前激活的 Conda 环境。最后一项只可手动触发，且只应在训练结束后使用。
+所有任务使用绝对路径，不依赖终端中当前激活的 Conda 环境。`PPO Smoke After Confirmation` 只可手动触发；其 Stage 04 脚本会创建时间戳子目录而不覆盖旧结果，允许外部 compute 进程存在但要求至少 10 GiB 可用显存。本次已成功运行一次：16 个训练环境、64-step rollout、65536 timesteps、state observation、`render_mode=None`、`render_backend="none"`、`sim_backend=physx_cuda`、无 WandB 上传、无视频。官方入口的无渲染 CLI 适配保持默认图像渲染行为不变。
 
 ## 上肢强化学习工作区
 

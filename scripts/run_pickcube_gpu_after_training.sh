@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Only run this after the current SwinAttUNet training has fully ended.
+# Only run this after all unrelated GPU compute jobs have fully ended.
 set -euo pipefail
 
 SCRIPT_PATH=$BASH_SOURCE
@@ -8,7 +8,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 source "$SCRIPT_DIR/maniskill_env.sh"
 
-echo "WARNING: This GPU smoke test is only for after the current training ends."
+echo "WARNING: This GPU smoke test is only for after unrelated training ends."
 echo "It refuses to run while any GPU compute process is present."
 
 if ! command -v nvidia-smi >/dev/null 2>&1; then
@@ -23,40 +23,21 @@ if [[ -n "$gpu_processes" ]]; then
     exit 1
 fi
 
-if ps -p 693206 -o pid= >/dev/null 2>&1; then
-    echo "Refusing GPU smoke test because protected training PID 693206 still exists." >&2
-    exit 1
-fi
-
 if [[ ! -x "$MANISKILL_PYTHON" ]]; then
     echo "ManiSkill Python was not found: $MANISKILL_PYTHON" >&2
     exit 1
 fi
 
-unset CUDA_VISIBLE_DEVICES
 cd "$REPO_ROOT"
-exec nice -n 15 ionice -c 3 "$MANISKILL_PYTHON" - <<'PY'
-import gymnasium as gym
-import mani_skill.envs
+export CUDA_VISIBLE_DEVICES=0
+export PYTHONFAULTHANDLER=1
 
-env = None
-try:
-    env = gym.make(
-        "PickCube-v1",
-        num_envs=16,
-        obs_mode="state",
-        control_mode="pd_joint_delta_pos",
-        render_mode=None,
-        sim_backend="physx_cuda",
-        # No images or GUI are requested; a CUDA render device is retained
-        # solely because PickCube creates material objects at setup time.
-        render_backend="cuda",
-    )
-    env.reset(seed=0)
-    for _ in range(30):
-        env.step(env.action_space.sample())
-    print("GPU smoke test completed.")
-finally:
-    if env is not None:
-        env.close()
-PY
+set +e
+nice -n 15 ionice -c 3 "$MANISKILL_PYTHON" -X faulthandler \
+    "$REPO_ROOT/local_examples/verify_pickcube_gpu.py" 2>&1 | \
+    tee "${REPO_ROOT}/deployment_logs/verify_pickcube_gpu.log"
+gpu_test_status=${PIPESTATUS[0]}
+set -e
+
+echo "GPU smoke test exit code: $gpu_test_status"
+exit "$gpu_test_status"
